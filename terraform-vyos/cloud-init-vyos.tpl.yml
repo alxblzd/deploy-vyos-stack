@@ -1,0 +1,37 @@
+#cloud-config
+# VyOS Cloud-Init Configuration Template
+# Based on: https://docs.vyos.io/en/latest/automation/cloud-init.html
+#
+# IMPORTANT: VyOS cloud-init only supports two top-level keys:
+# - vyos_config_commands: VyOS configuration commands (one per line)
+# - write_files: Write custom files to the system
+#
+# Network configuration should come from network-config metadata, NOT vyos_config_commands
+
+vyos_config_commands:
+  - set system host-name '${hostname}'
+  - set system time-zone '${timezone}'
+  - set system ntp server '${ntp_server_1}'
+  - set system ntp server '${ntp_server_2}'
+  - set system option performance 'throughput'
+
+%{ for idx, key in ssh_keys ~}
+  - set system login user ansible authentication public-keys key-${format("%02d", idx + 1)} key '${key.key}'
+  - set system login user ansible authentication public-keys key-${format("%02d", idx + 1)} type '${key.type}'
+%{ endfor ~}
+
+%{ for idx, key in ssh_keys ~}
+  - set system login user vyos authentication public-keys key-${format("%02d", idx + 1)} key '${key.key}'
+  - set system login user vyos authentication public-keys key-${format("%02d", idx + 1)} type '${key.type}'
+%{ endfor ~}
+
+  # NOTE: These commands may conflict with cloud-init network-config metadata
+  # If you see errors, remove these and configure network via Proxmox cloud-init instead
+  - set interfaces ethernet eth0 address '${wan_ip}'
+  - set interfaces ethernet eth0 description 'WAN'
+  - set protocols static route 0.0.0.0/0 next-hop '${wan_gateway}'
+
+  - set service ssh port '${ssh_port}'
+
+  - commit
+  - save

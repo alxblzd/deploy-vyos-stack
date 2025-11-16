@@ -14,7 +14,7 @@ terraform.tfvars
 
 # Generated cloud-init files (contain passwords)
 generated/
-cloud-init-*.yml
+
 !cloud-init-example.yml
 
 ansible/group_vars/vault.yml
