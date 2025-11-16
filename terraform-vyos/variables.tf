@@ -103,7 +103,11 @@ variable "datastore_id" {
   default     = "local-lvm"
   description = "Datastore for VM disks"
 }
-
+variable "datastore_snippet_id" {
+  type        = string
+  default     = "local"
+  description = "Datastore for snippet"
+}
 variable "cloud_init_datastore" {
   type        = string
   default     = "local"
@@ -125,4 +129,22 @@ variable "started" {
   type        = bool
   default     = true
   description = "Start VMs after creation"
+}
+
+variable "timezone" {
+  type        = string
+  default     = "UTC"
+  description = "Timezone for VyOS routers"
+}
+
+variable "ntp_servers" {
+  type        = list(string)
+  default     = ["0.pool.ntp.org", "1.pool.ntp.org"]
+  description = "NTP servers for time synchronization"
+}
+
+variable "ssh_port" {
+  type        = number
+  default     = 22
+  description = "SSH port for VyOS routers"
 }

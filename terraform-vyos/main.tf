@@ -11,9 +11,46 @@ provider "proxmox" {
   endpoint  = var.proxmox.endpoint
   api_token = var.proxmox.api_token
   insecure  = var.proxmox.insecure
+
+  ssh {
+    agent       = false
+    private_key = file("~/.ssh/id_rsa")
+    username = var.proxmox.ssh_username
+  }
+
 }
 
-# VyOS Virtual Machine Resource
+# Parse SSH keys once for reuse
+locals {
+  ssh_keys_parsed = [
+    for key in var.ssh_public_keys : {
+      type = split(" ", key)[0]
+      key  = split(" ", key)[1]
+    }
+  ]
+}
+
+resource "proxmox_virtual_environment_file" "vyos_userdata" {
+  for_each     = { for vm in var.vyos_vms : vm.name => vm }
+  datastore_id = var.datastore_snippet_id
+  node_name    = var.proxmox.node_name
+  content_type = "snippets" 
+
+  source_raw {
+    file_name = "cloud-init-${each.key}.yml"
+    data = templatefile("${path.module}/cloud-init-vyos.tpl.yml", {
+      hostname     = each.value.hostname
+      wan_ip       = each.value.wan_ip
+      wan_gateway  = each.value.wan_gateway
+      timezone     = var.timezone
+      ntp_server_1 = var.ntp_servers[0]
+      ntp_server_2 = var.ntp_servers[1]
+      ssh_port     = var.ssh_port
+      ssh_keys     = local.ssh_keys_parsed
+    })
+  }
+}
+
 resource "proxmox_virtual_environment_vm" "vyos" {
   for_each = { for vm in var.vyos_vms : vm.name => vm }
 
@@ -22,7 +59,6 @@ resource "proxmox_virtual_environment_vm" "vyos" {
   description = "VyOS Router - Managed by Terraform\nHostname: ${each.value.hostname}\nZones: ${join(", ", [for zone in each.value.zone_interfaces : zone.name])}"
   tags        = concat(var.tags, ["router", "microsegmentation"])
 
-
   clone {
     vm_id        = var.vyos_template_id
     full         = true
@@ -30,26 +66,20 @@ resource "proxmox_virtual_environment_vm" "vyos" {
     retries      = 3
   }
 
-
-  # Enable QEMU Guest Agent for better integration
   agent {
     enabled = true
     type    = "virtio"
   }
 
-  # CPU Configuration
   cpu {
     cores = each.value.cpu_cores
     type  = "host"
   }
 
-  # Memory Configuration
   memory {
     dedicated = each.value.memory_mb
   }
 
-
-  # Disk Configuration
   disk {
     datastore_id = var.datastore_id
     interface    = "scsi0"
@@ -58,15 +88,12 @@ resource "proxmox_virtual_environment_vm" "vyos" {
     discard      = "on"
   }
 
-  # WAN Network Interface (eth0)
   network_device {
     bridge  = each.value.wan_bridge
     model   = "virtio"
     vlan_id = try(each.value.wan_vlan, null)
   }
 
-  # Dynamic Zone Network Interfaces (eth1, eth2, eth3, etc.)
-  # These will be configured by Ansible with VLANs and IP addresses
   dynamic "network_device" {
     for_each = each.value.zone_interfaces
     content {
@@ -77,24 +104,18 @@ resource "proxmox_virtual_environment_vm" "vyos" {
   }
 
   # Cloud-Init Initialization
-  # IMPORTANT: For VyOS, we ONLY use user_data_file_id
-  # Do NOT use ip_config - it causes Proxmox to override the custom user-data
-  # Network configuration is handled via vyos_config_commands in the user-data file
   initialization {
+    type              = "nocloud"
     datastore_id      = var.datastore_id
-    user_data_file_id = "local:snippets/cloud-init-${each.value.name}.yml"
+    user_data_file_id = proxmox_virtual_environment_file.vyos_userdata[each.key].id
   }
 
-  # Boot Configuration
   boot_order = var.boot_order
   started    = var.started
 
-  # Lifecycle management
   lifecycle {
     ignore_changes = [
-      # Ignore network device changes made by VyOS
       network_device,
-      # Keep VM running state as configured
       started,
     ]
   }

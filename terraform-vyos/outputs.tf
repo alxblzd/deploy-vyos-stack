@@ -1,6 +1,3 @@
-# Terraform Outputs for VyOS Deployment
-
-# Summary of deployed VyOS instances
 output "vyos_summary" {
   description = "Summary of deployed VyOS router instances"
   value = {
@@ -20,7 +17,6 @@ output "vyos_summary" {
   }
 }
 
-# Network zones configuration
 output "vyos_network_zones" {
   description = "Network zones configured for each VyOS instance"
   value = { for k, v in var.vyos_vms :
@@ -35,7 +31,6 @@ output "vyos_network_zones" {
   }
 }
 
-# Access information for deployed VMs
 output "vyos_access_info" {
   description = "VyOS access information for SSH and management"
   value = { for k, v in proxmox_virtual_environment_vm.vyos :
@@ -49,7 +44,6 @@ output "vyos_access_info" {
   }
 }
 
-# Ansible inventory data
 output "vyos_ansible_inventory" {
   description = "Ansible inventory data for automation"
   value = { for k, v in var.vyos_vms :
@@ -64,7 +58,6 @@ output "vyos_ansible_inventory" {
   }
 }
 
-# Cloud-init status
 output "cloud_init_status" {
   description = "Cloud-init configuration status"
   value = {
@@ -74,7 +67,6 @@ output "cloud_init_status" {
   }
 }
 
-# Post-deployment steps
 output "vyos_post_deployment" {
   description = "Post-deployment configuration steps"
   value       = <<-EOT
