@@ -24,8 +24,8 @@ backups/
 vault.yml
 !vault.yml.example
 
-# Cloud-init files (may contain passwords)
-cloud-init-*.yml
+# Cloud-init files 
+
 !cloud-init-example.yml
 snippets/
 
