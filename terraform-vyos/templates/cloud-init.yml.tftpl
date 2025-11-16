@@ -1,0 +1,61 @@
+#cloud-config
+# VyOS Cloud-Init Configuration Template
+# This file is processed by Terraform to generate cloud-init user-data
+# for VyOS VM initialization on Proxmox
+
+# VyOS configuration commands
+# These are executed during first boot to set up the router
+vyos_config_commands:
+  # System hostname
+  - set system host-name '${hostname}'
+
+  # Time zone configuration
+  - set system time-zone 'UTC'
+
+  # NTP servers for time synchronization
+  - set system ntp server 0.pool.ntp.org
+  - set system ntp server 1.pool.ntp.org
+
+  # Default VyOS user configuration
+  - set system login user vyos authentication plaintext-password '${vyos_password}'
+
+  # Ansible automation user
+  - set system login user ${ansible_user} authentication plaintext-password '${ansible_password}'
+%{ for idx, key in ssh_keys ~}
+  - set system login user ${ansible_user} authentication public-keys key-${idx + 1} key '${trimspace(join(" ", slice(split(" ", key), 1, length(split(" ", key)))))}'
+  - set system login user ${ansible_user} authentication public-keys key-${idx + 1} type '${split(" ", key)[0]}'
+%{ endfor ~}
+
+  # WAN Interface (eth0) - Management network
+  - set interfaces ethernet eth0 address '${wan_ip}'
+  - set interfaces ethernet eth0 description 'WAN'
+
+  # Default route via WAN gateway
+  - set protocols static route 0.0.0.0/0 next-hop '${wan_gateway}'
+
+  # Enable SSH service
+  - set service ssh port '22'
+  - set service ssh disable-password-authentication
+
+  # DNS forwarding for the router itself
+  - set system name-server '8.8.8.8'
+  - set system name-server '8.8.4.4'
+
+  # Note: Service configuration (DHCP, DNS) is managed by Ansible
+  # Cloud-init only handles initial system setup
+  # Do not delete services here as Ansible will configure them later
+
+  # Enable LLDP for network discovery (optional)
+  - set service lldp interface all
+
+  # Configure serial console
+  - set system console device ttyS0 speed '115200'
+
+# Write additional files (optional)
+# write_files:
+#   - path: /config/scripts/custom-init.sh
+#     permissions: '0755'
+#     content: |
+#       #!/bin/vbash
+#       # Custom initialization script
+#       echo "VyOS initialized via cloud-init"

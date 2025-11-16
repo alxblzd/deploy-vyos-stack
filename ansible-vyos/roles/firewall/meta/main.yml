@@ -1,0 +1,4 @@
+---
+dependencies:
+  - role: network
+    # Firewall zones require network interfaces to be configured first

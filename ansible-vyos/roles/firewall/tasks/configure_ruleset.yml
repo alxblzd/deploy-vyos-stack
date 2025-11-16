@@ -1,0 +1,47 @@
+---
+# Configure individual firewall ruleset
+# This task is called for each ruleset (North-South and East-West)
+
+- name: Create firewall name for {{ ruleset.name }}
+  vyos.vyos.vyos_config:
+    lines:
+      - set firewall name {{ ruleset.name }} description '{{ ruleset.description }}'
+      - set firewall name {{ ruleset.name }} default-action {{ ruleset.default_action }}
+
+- name: Configure rules for {{ ruleset.name }}
+  vyos.vyos.vyos_config:
+    lines: >-
+      {% set config_lines = [] %}
+      {% for rule in ruleset.rules %}
+      {% set _ = config_lines.append('set firewall name ' + ruleset.name + ' rule ' + (rule.number | string) + ' action ' + rule.action) %}
+      {% set _ = config_lines.append('set firewall name ' + ruleset.name + ' rule ' + (rule.number | string) + ' description "' + rule.description + '"') %}
+      {% if rule.protocol is defined %}
+      {% set _ = config_lines.append('set firewall name ' + ruleset.name + ' rule ' + (rule.number | string) + ' protocol ' + rule.protocol) %}
+      {% endif %}
+      {% if rule.state is defined %}
+      {% if rule.state.established is defined %}
+      {% set _ = config_lines.append('set firewall name ' + ruleset.name + ' rule ' + (rule.number | string) + ' state established ' + rule.state.established) %}
+      {% endif %}
+      {% if rule.state.related is defined %}
+      {% set _ = config_lines.append('set firewall name ' + ruleset.name + ' rule ' + (rule.number | string) + ' state related ' + rule.state.related) %}
+      {% endif %}
+      {% if rule.state.invalid is defined %}
+      {% set _ = config_lines.append('set firewall name ' + ruleset.name + ' rule ' + (rule.number | string) + ' state invalid ' + rule.state.invalid) %}
+      {% endif %}
+      {% endif %}
+      {% if rule.destination is defined %}
+      {% if rule.destination.port is defined %}
+      {% set _ = config_lines.append('set firewall name ' + ruleset.name + ' rule ' + (rule.number | string) + ' destination port ' + (rule.destination.port | string)) %}
+      {% endif %}
+      {% if rule.destination.address is defined %}
+      {% set _ = config_lines.append('set firewall name ' + ruleset.name + ' rule ' + (rule.number | string) + ' destination address ' + rule.destination.address) %}
+      {% endif %}
+      {% endif %}
+      {% endfor %}
+      {{ config_lines }}
+  when: ruleset.rules is defined
+
+- name: Apply ruleset to zone-policy for {{ ruleset.name }}
+  vyos.vyos.vyos_config:
+    lines:
+      - set zone-policy zone {{ ruleset.from_zone }} from {{ ruleset.to_zone }} firewall name {{ ruleset.name }}

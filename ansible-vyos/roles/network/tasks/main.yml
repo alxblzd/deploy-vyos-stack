@@ -1,0 +1,30 @@
+---
+# Configure network interfaces and VLANs
+
+- name: Validate network zones configuration
+  ansible.builtin.assert:
+    that:
+      - network_zones is defined
+      - network_zones | length > 0
+      - network_zones | map(attribute='vlan_id') | list | unique | length == network_zones | length
+    fail_msg: "network_zones validation failed: must be defined, non-empty, and have unique VLAN IDs"
+    success_msg: "network_zones configuration validated successfully"
+
+- name: Configure VLAN interfaces
+  vyos.vyos.vyos_config:
+    lines:
+      - set interfaces ethernet {{ item.interface }} vif {{ item.vlan_id }} description '{{ item.description }}'
+      - set interfaces ethernet {{ item.interface }} vif {{ item.vlan_id }} address {{ item.ip }}
+      - delete interfaces ethernet {{ item.interface }} disable
+    save: false  # Don't save yet - commit once at the end
+  loop: "{{ network_zones }}"
+
+- name: Configure WAN interface
+  vyos.vyos.vyos_config:
+    lines:
+      - set interfaces ethernet {{ wan_interface }} description 'WAN Interface'
+    save: false  # Don't save yet - commit once at the end
+
+- name: Commit network configuration
+  vyos.vyos.vyos_config:
+    save: true  # Save all network changes once

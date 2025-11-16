@@ -1,0 +1,16 @@
+---
+# Configure Source NAT
+
+- name: Configure source NAT rules
+  vyos.vyos.vyos_config:
+    lines:
+      - set nat source rule {{ item.rule_number }} description '{{ item.description }}'
+      - set nat source rule {{ item.rule_number }} outbound-interface {{ item.outbound_interface }}
+      - set nat source rule {{ item.rule_number }} source address {{ item.source.address }}
+      - set nat source rule {{ item.rule_number }} translation address {{ item.translation.address }}
+    save: false  # Don't save yet - commit once at the end
+  loop: "{{ nat_source_rules }}"
+
+- name: Commit NAT configuration
+  vyos.vyos.vyos_config:
+    save: true  # Save all NAT changes once

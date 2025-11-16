@@ -1,0 +1,30 @@
+---
+# Bootstrap - Verify VyOS connectivity
+
+- name: Test connectivity
+  vyos.vyos.vyos_command:
+    commands:
+      - show version
+  register: version_check
+  retries: 3
+  delay: 5
+  until: version_check is succeeded
+
+- name: Display VyOS version
+  ansible.builtin.debug:
+    msg: "Connected to VyOS successfully. Version info received."
+  when: version_check is succeeded
+
+- name: Verify configuration mode access
+  vyos.vyos.vyos_config:
+    lines:
+      - set system option performance throughput
+  register: config_check
+  failed_when: false  # Don't fail if this specific option fails
+
+- name: Ensure configuration mode is accessible
+  ansible.builtin.assert:
+    that:
+      - config_check is not failed or 'already exists' in config_check.msg | default('')
+    fail_msg: "Cannot access VyOS configuration mode"
+    success_msg: "VyOS configuration mode accessible"

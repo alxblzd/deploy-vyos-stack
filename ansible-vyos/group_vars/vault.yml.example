@@ -1,0 +1,32 @@
+---
+# Ansible Vault Example File
+#
+# This file shows the structure for encrypted sensitive variables.
+#
+# To use:
+# 1. Copy this file: cp vault.yml.example vault.yml
+# 2. Edit with your actual values: vim vault.yml
+# 3. Encrypt it: ansible-vault encrypt vault.yml
+# 4. Use in playbooks with: ansible-playbook site.yml --ask-vault-pass
+#
+# To edit later: ansible-vault edit vault.yml
+# To view: ansible-vault view vault.yml
+
+# VyOS router credentials
+vyos_admin_password: "your_secure_vyos_admin_password_here"
+
+# Ansible automation user password
+ansible_ssh_password: "your_secure_ansible_password_here"
+
+# API tokens or keys (if needed)
+# proxmox_api_token: "your_proxmox_token_here"
+# api_keys:
+#   - name: "service1"
+#     key: "api_key_value"
+
+# Optional: SNMP community strings
+# snmp_community_ro: "public"
+# snmp_community_rw: "private"
+
+# Optional: VPN Pre-Shared Keys
+# vpn_psk: "your_vpn_preshared_key"

@@ -1,0 +1,14 @@
+---
+# Ansible Galaxy requirements for VyOS automation
+#
+# COMPATIBILITY NOTE:
+# These collections require Ansible core >= 2.15 and < 2.19
+# Ansible core 2.19.0 (beta) has breaking API changes that cause compatibility issues
+# Recommended: Use Ansible core 2.17.x or 2.18.x for stable operation
+
+collections:
+  - name: vyos.vyos
+    version: ">=4.1.0,<7.0.0"
+
+  - name: ansible.netcommon
+    version: ">=6.1.0,<9.0.0"

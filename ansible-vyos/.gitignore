@@ -1,0 +1,26 @@
+# Ansible logs and temporary files
+ansible.log
+*.log
+*.retry
+
+# Backup files
+backups/
+
+# Temporary test files
+test-*.yml
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

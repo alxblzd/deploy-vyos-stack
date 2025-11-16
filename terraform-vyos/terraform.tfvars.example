@@ -1,0 +1,111 @@
+# Change ALL default passwords before deployment!
+# Required changes:
+#   - proxmox.api_token (line 4)
+#   - ansible_password (line 77)
+#   - vyos_user_password (line 80)
+#   - ssh_public_keys (line 70-73)
+#
+# Also update:
+#   - proxmox.endpoint with your Proxmox URL
+#   - proxmox.node_name with your Proxmox node name
+#   - vyos_template_id with your template VM ID
+
+# Proxmox Connection Configuration
+proxmox = {
+  endpoint     = "https://proxmox.example.com:8006/"
+  api_token    = "terraform@pve!terraform=YOUR_TOKEN_HERE"
+  insecure     = true
+  node_name    = "pve"
+  ssh_username = "ansible"  # SSH user for file uploads (must have passwordless SSH access)
+}
+
+# VyOS Router Configuration
+vyos_vms = [
+  {
+    name        = "vyos-router-01"
+    hostname    = "vyos-router-01"
+    cpu_cores   = 2
+    memory_mb   = 2048
+    disk_gb     = 10
+    wan_bridge  = "vmbr0"
+    wan_ip      = "192.168.15.81/24"
+    wan_gateway = "192.168.15.1"
+    # wan_vlan    = null  # Optional: VLAN tag for WAN interface
+
+    # Network Zones for Microsegmentation
+    # Each zone will have its own VLAN and firewall rules
+    zone_interfaces = [
+      {
+        name    = "dmz"
+        bridge  = "vmbr0"
+        vlan_id = 10
+      },
+      {
+        name    = "trusted"
+        bridge  = "vmbr0"
+        vlan_id = 20
+      },
+      {
+        name    = "guest"
+        bridge  = "vmbr0"
+        vlan_id = 30
+      },
+      {
+        name    = "iot"
+        bridge  = "vmbr0"
+        vlan_id = 40
+      }
+    ]
+  }
+  # Add more routers as needed:
+  # {
+  #   name        = "vyos-router-02"
+  #   hostname    = "vyos-router-02"
+  #   cpu_cores   = 2
+  #   memory_mb   = 2048
+  #   disk_gb     = 10
+  #   wan_bridge  = "vmbr0"
+  #   wan_ip      = "192.168.15.82/24"
+  #   wan_gateway = "192.168.15.1"
+  #   zone_interfaces = [
+  #     {
+  #       name    = "dmz"
+  #       bridge  = "vmbr0"
+  #       vlan_id = 50
+  #     }
+  #   ]
+  # }
+]
+
+# SSH Public Keys for Authentication
+ssh_public_keys = [
+  "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... your-key-here user@host",
+  # "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... another-key-here user@host"  # More secure!
+]
+
+# Ansible User Configuration
+ansible_user     = "ansible"
+ansible_password = "REPLACE_WITH_STRONG_PASSWORD"  # MUST be 12+ characters
+
+# VyOS Default User Password
+# SECURITY WARNING: Never use the default "vyos" password!
+# Terraform validation will prevent using "vyos" as the password
+vyos_user_password = "REPLACE_WITH_STRONG_PASSWORD"  # MUST be 12+ characters, cannot be "vyos"
+
+# VM Tags
+tags = ["terraform", "vyos", "router", "microsegmentation"]
+
+# Proxmox Datastore Configuration
+datastore_id         = "local-lvm"  # For VM disks
+cloud_init_datastore = "local"      # For cloud-init snippets and images
+
+# VyOS Template ID
+# VM ID of the VyOS template with cloudinit on Proxmox 
+vyos_template_id = 9000  # Update this with your actual template ID
+
+# Optional: Override defaults
+# boot_order = ["scsi0"]
+# started    = true
+
+
+

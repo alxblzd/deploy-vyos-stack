@@ -1,0 +1,23 @@
+---
+# VyOS Configuration Playbook
+
+- name: Configure VyOS Router
+  hosts: vyos_routers
+  gather_facts: no
+
+  roles:
+    - role: bootstrap
+      tags: ['bootstrap', 'verify']
+    - role: network
+      tags: ['network']
+    - role: firewall
+      tags: ['firewall']
+    - role: nat
+      tags: ['nat']
+    - role: services
+      tags: ['services']
+
+  post_tasks:
+    - name: Save configuration
+      vyos.vyos.vyos_config:
+        save: true

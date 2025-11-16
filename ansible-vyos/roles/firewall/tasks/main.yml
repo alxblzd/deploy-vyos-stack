@@ -1,0 +1,48 @@
+---
+# Configure Zone-Based Firewall
+
+- name: Configure firewall global options
+  vyos.vyos.vyos_config:
+    lines:
+      - set firewall all-ping {{ firewall_global.all_ping }}
+      - set firewall broadcast-ping {{ firewall_global.broadcast_ping }}
+      - set firewall ip-src-route {{ firewall_global.ip_src_route }}
+      - set firewall log-martians {{ firewall_global.log_martians }}
+      - set firewall receive-redirects {{ firewall_global.receive_redirects }}
+      - set firewall send-redirects {{ firewall_global.send_redirects }}
+      - set firewall source-validation {{ firewall_global.source_validation }}
+      - set firewall syn-cookies {{ firewall_global.syn_cookies }}
+
+- name: Create firewall zones
+  vyos.vyos.vyos_config:
+    lines:
+      - set zone-policy zone {{ item.name }} description '{{ item.description }}'
+      - set zone-policy zone {{ item.name }} default-action {{ item.default_action }}
+  loop: "{{ firewall_zones }}"
+
+- name: Assign WAN interface to zone
+  vyos.vyos.vyos_config:
+    lines:
+      - set zone-policy zone wan interface {{ wan_interface }}
+
+- name: Assign VLAN interfaces to zones
+  vyos.vyos.vyos_config:
+    lines:
+      - set zone-policy zone {{ item.name }} interface {{ item.interface }}.{{ item.vlan_id }}
+  loop: "{{ network_zones }}"
+
+- name: Configure North-South firewall rules
+  include_tasks: configure_ruleset.yml
+  loop: "{{ north_south_firewall_rules }}"
+  loop_control:
+    loop_var: ruleset
+
+- name: Configure East-West firewall rules
+  include_tasks: configure_ruleset.yml
+  loop: "{{ east_west_firewall_rules }}"
+  loop_control:
+    loop_var: ruleset
+
+- name: Save firewall configuration
+  vyos.vyos.vyos_config:
+    save: true

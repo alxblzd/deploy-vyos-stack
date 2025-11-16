@@ -1,0 +1,26 @@
+---
+# Backup VyOS Configuration
+
+- name: Backup VyOS Configuration
+  hosts: vyos_routers
+  gather_facts: no
+
+  tasks:
+    - name: Create backup directory
+      ansible.builtin.file:
+        path: ./backups
+        state: directory
+      delegate_to: localhost
+      run_once: true
+
+    - name: Fetch configuration
+      vyos.vyos.vyos_command:
+        commands:
+          - show configuration commands
+      register: config
+
+    - name: Save backup
+      ansible.builtin.copy:
+        content: "{{ config.stdout[0] }}"
+        dest: "./backups/{{ inventory_hostname }}-{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}.conf"
+      delegate_to: localhost

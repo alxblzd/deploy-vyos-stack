@@ -1,0 +1,29 @@
+---
+# Configure DNS forwarding
+
+- name: Build DNS listen addresses
+  ansible.builtin.set_fact:
+    dns_listen_addresses: "{{ network_zones | map(attribute='ip') | map('regex_replace', '/.*', '') | list }}"
+
+- name: Configure DNS listen addresses
+  vyos.vyos.vyos_config:
+    lines:
+      - set service dns forwarding listen-address {{ item }}
+  loop: "{{ dns_listen_addresses }}"
+
+- name: Configure DNS upstream servers
+  vyos.vyos.vyos_config:
+    lines:
+      - set service dns forwarding name-server {{ item }}
+  loop: "{{ dns_forwarding.upstream_servers }}"
+
+- name: Configure DNS cache size
+  vyos.vyos.vyos_config:
+    lines:
+      - set service dns forwarding cache-size {{ dns_forwarding.cache_size }}
+
+- name: Allow DNS from internal networks
+  vyos.vyos.vyos_config:
+    lines:
+      - set service dns forwarding allow-from {{ item.ip | regex_replace('/[0-9]+', '/24') }}
+  loop: "{{ network_zones }}"
