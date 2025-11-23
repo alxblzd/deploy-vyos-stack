@@ -1,4 +1,0 @@
----
-dependencies:
-  - role: bootstrap
-    # Network configuration requires verified connectivity

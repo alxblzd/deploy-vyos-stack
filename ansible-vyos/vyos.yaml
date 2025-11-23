@@ -7,24 +7,24 @@
   
   tasks:
     - import_role:
-        name: system
-      tags: ['system']
-    
+        name: bootstrap
+      tags: ['bootstrap', 'system']
+
     - import_role:
-        name: interfaces
-      tags: ['interfaces']
-    
+        name: network
+      tags: ['network', 'interfaces']
+
     - import_role:
         name: firewall
       tags: ['firewall']
-    
+
     - import_role:
         name: nat
       tags: ['nat']
-    
+
     - import_role:
-        name: dns
-      tags: ['dns']
+        name: services
+      tags: ['services', 'dns']
     
     - name: Save configuration
       vyos.vyos.vyos_config:

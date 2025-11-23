@@ -7,7 +7,3 @@
 # DHCP is disabled per requirements - all VMs use static IPs
 # - name: Configure DHCP servers
 #   include_tasks: dhcp.yml
-
-- name: Save services configuration
-  vyos.vyos.vyos_config:
-    save: true

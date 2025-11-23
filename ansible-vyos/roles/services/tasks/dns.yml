@@ -1,29 +1,21 @@
 ---
-# Configure DNS forwarding
+# Configure DNS forwarding - All settings in single commit to avoid validation errors
 
-- name: Build DNS listen addresses
+- name: Build complete DNS configuration
   ansible.builtin.set_fact:
-    dns_listen_addresses: "{{ network_zones | map(attribute='ip') | map('regex_replace', '/.*', '') | list }}"
+    dns_commands: |
+      {% for zone in network_zones %}
+      set service dns forwarding listen-address {{ zone.ip | regex_replace('/.*', '') }}
+      {% endfor %}
+      {% for server in dns_forwarding.upstream_servers %}
+      set service dns forwarding name-server {{ server }}
+      {% endfor %}
+      set service dns forwarding cache-size {{ dns_forwarding.cache_size }}
+      {% for zone in network_zones %}
+      set service dns forwarding allow-from {{ zone.network }}
+      {% endfor %}
 
-- name: Configure DNS listen addresses
+- name: Configure DNS forwarding service
   vyos.vyos.vyos_config:
-    lines:
-      - set service dns forwarding listen-address {{ item }}
-  loop: "{{ dns_listen_addresses }}"
-
-- name: Configure DNS upstream servers
-  vyos.vyos.vyos_config:
-    lines:
-      - set service dns forwarding name-server {{ item }}
-  loop: "{{ dns_forwarding.upstream_servers }}"
-
-- name: Configure DNS cache size
-  vyos.vyos.vyos_config:
-    lines:
-      - set service dns forwarding cache-size {{ dns_forwarding.cache_size }}
-
-- name: Allow DNS from internal networks
-  vyos.vyos.vyos_config:
-    lines:
-      - set service dns forwarding allow-from {{ item.ip | regex_replace('/[0-9]+', '/24') }}
-  loop: "{{ network_zones }}"
+    lines: "{{ dns_commands.split('\n') | select('match', '^set ') | list }}"
+    save: true

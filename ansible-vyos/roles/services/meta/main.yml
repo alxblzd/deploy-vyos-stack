@@ -1,4 +1,0 @@
----
-dependencies:
-  - role: network
-    # DHCP and DNS services require network zones to be configured first
