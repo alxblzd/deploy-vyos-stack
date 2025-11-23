@@ -1,0 +1,68 @@
+{# VyOS 1.5+ Firewall Rulesets Template #}
+{# This template generates firewall ipv4 name rulesets for zone-based firewall #}
+
+{# Combine all firewall rules into one list for processing #}
+{% set all_firewall_rules = north_south_firewall_rules + east_west_firewall_rules + local_zone_firewall_rules %}
+
+{# Generate rulesets for all zone-to-zone traffic #}
+{% for ruleset in all_firewall_rules %}
+{# Base ruleset configuration #}
+set firewall ipv4 name {{ ruleset.name | upper | replace('-', '_') }} default-action {{ ruleset.default_action }}
+set firewall ipv4 name {{ ruleset.name | upper | replace('-', '_') }} default-log
+set firewall ipv4 name {{ ruleset.name | upper | replace('-', '_') }} description '{{ ruleset.description }}'
+
+{# Generate rules for this ruleset #}
+{% for rule in ruleset.rules %}
+set firewall ipv4 name {{ ruleset.name | upper | replace('-', '_') }} rule {{ rule.number }} action {{ rule.action }}
+{% if rule.description is defined %}
+set firewall ipv4 name {{ ruleset.name | upper | replace('-', '_') }} rule {{ rule.number }} description '{{ rule.description }}'
+{% endif %}
+
+{# Protocol #}
+{% if rule.protocol is defined %}
+set firewall ipv4 name {{ ruleset.name | upper | replace('-', '_') }} rule {{ rule.number }} protocol {{ rule.protocol }}
+{% endif %}
+
+{# Connection state #}
+{% if rule.state is defined %}
+{% if rule.state.established is defined and rule.state.established == 'enable' %}
+set firewall ipv4 name {{ ruleset.name | upper | replace('-', '_') }} rule {{ rule.number }} state established
+{% endif %}
+{% if rule.state.related is defined and rule.state.related == 'enable' %}
+set firewall ipv4 name {{ ruleset.name | upper | replace('-', '_') }} rule {{ rule.number }} state related
+{% endif %}
+{% if rule.state.invalid is defined and rule.state.invalid == 'enable' %}
+set firewall ipv4 name {{ ruleset.name | upper | replace('-', '_') }} rule {{ rule.number }} state invalid
+{% endif %}
+{% if rule.state.new is defined and rule.state.new == 'enable' %}
+set firewall ipv4 name {{ ruleset.name | upper | replace('-', '_') }} rule {{ rule.number }} state new
+{% endif %}
+{% endif %}
+
+{# Source address and port #}
+{% if rule.source is defined %}
+{% if rule.source.address is defined %}
+set firewall ipv4 name {{ ruleset.name | upper | replace('-', '_') }} rule {{ rule.number }} source address {{ rule.source.address }}
+{% endif %}
+{% if rule.source.port is defined %}
+set firewall ipv4 name {{ ruleset.name | upper | replace('-', '_') }} rule {{ rule.number }} source port {{ rule.source.port }}
+{% endif %}
+{% endif %}
+
+{# Destination address and port #}
+{% if rule.destination is defined %}
+{% if rule.destination.address is defined %}
+set firewall ipv4 name {{ ruleset.name | upper | replace('-', '_') }} rule {{ rule.number }} destination address {{ rule.destination.address }}
+{% endif %}
+{% if rule.destination.port is defined %}
+set firewall ipv4 name {{ ruleset.name | upper | replace('-', '_') }} rule {{ rule.number }} destination port {{ rule.destination.port }}
+{% endif %}
+{% endif %}
+
+{# Logging #}
+{% if rule.log is defined and rule.log %}
+set firewall ipv4 name {{ ruleset.name | upper | replace('-', '_') }} rule {{ rule.number }} log
+{% endif %}
+
+{% endfor %}
+{% endfor %}

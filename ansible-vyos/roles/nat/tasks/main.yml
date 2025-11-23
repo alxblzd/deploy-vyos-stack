@@ -1,15 +1,28 @@
 ---
-# Configure Source NAT
+# Configure NAT (Source and Destination)
 
 - name: Configure source NAT rules
   vyos.vyos.vyos_config:
     lines:
       - set nat source rule {{ item.rule_number }} description '{{ item.description }}'
-      - set nat source rule {{ item.rule_number }} outbound-interface {{ item.outbound_interface }}
+      - set nat source rule {{ item.rule_number }} outbound-interface name {{ item.outbound_interface }}
       - set nat source rule {{ item.rule_number }} source address {{ item.source.address }}
       - set nat source rule {{ item.rule_number }} translation address {{ item.translation.address }}
     save: false  # Don't save yet - commit once at the end
   loop: "{{ nat_source_rules }}"
+
+- name: Configure destination NAT rules (Port Forwarding)
+  vyos.vyos.vyos_config:
+    lines:
+      - set nat destination rule {{ item.rule_number }} description '{{ item.description }}'
+      - set nat destination rule {{ item.rule_number }} inbound-interface name {{ item.inbound_interface }}
+      - set nat destination rule {{ item.rule_number }} protocol {{ item.protocol }}
+      - set nat destination rule {{ item.rule_number }} destination port {{ item.destination.port }}
+      - set nat destination rule {{ item.rule_number }} translation address {{ item.translation.address }}
+      - set nat destination rule {{ item.rule_number }} translation port {{ item.translation.port }}
+    save: false  # Don't save yet - commit once at the end
+  loop: "{{ nat_destination_rules }}"
+  when: nat_destination_rules is defined
 
 - name: Commit NAT configuration
   vyos.vyos.vyos_config:

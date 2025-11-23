@@ -1,0 +1,688 @@
+---
+# VyOS Configuration Variables - Simplified for 4 VLAN Setup
+# This file contains all configuration for VyOS routers managed by Ansible
+
+# System Configuration
+vyos_timezone: "UTC"
+vyos_ntp_servers:
+  - 0.pool.ntp.org
+  - 1.pool.ntp.org
+
+# DNS Forwarding Configuration
+dns_forwarding:
+  cache_size: 10000
+  upstream_servers:
+    - 1.1.1.1
+    - 8.8.8.8
+  # Listen addresses will be automatically configured based on zone IPs
+
+# Firewall Zones Configuration
+firewall_zones:
+  - name: wan
+    description: "WAN/Internet Zone"
+    default_action: drop
+    interfaces:
+      - "{{ wan_interface }}"
+
+  - name: mgmt
+    description: "Management Network - Full access"
+    default_action: drop
+    interfaces: []
+
+  - name: dmz-cloud
+    description: "DMZ Cloud - Nextcloud services"
+    default_action: drop
+    interfaces: []
+
+  - name: dmz-web
+    description: "DMZ Web - Web services (Jellyfin, Uptime Kuma, etc)"
+    default_action: drop
+    interfaces: []
+
+  - name: vpn
+    description: "VPN Network - Treated as DMZ"
+    default_action: drop
+    interfaces: []
+
+# Firewall Rules - Simplified
+# Format: from_zone -> to_zone
+
+# ============================================================================
+# NORTH-SOUTH RULES (Internal <-> WAN)
+# ============================================================================
+north_south_firewall_rules:
+  # MGMT -> WAN: Full internet access
+  - name: mgmt-to-wan
+    from_zone: mgmt
+    to_zone: wan
+    default_action: accept
+    description: "Management has full internet access"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        description: "Allow all outbound from MGMT"
+
+  # DMZ-Cloud -> WAN: Limited (updates only)
+  - name: dmz-cloud-to-wan
+    from_zone: dmz-cloud
+    to_zone: wan
+    default_action: drop
+    description: "DMZ Cloud limited internet for updates"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        protocol: tcp
+        destination:
+          port: "80,443"
+        description: "Allow HTTP/HTTPS for updates"
+
+      - number: 30
+        action: accept
+        protocol: udp
+        destination:
+          port: "53"
+        description: "Allow DNS queries"
+
+  # DMZ-Web -> WAN: Limited (updates only)
+  - name: dmz-web-to-wan
+    from_zone: dmz-web
+    to_zone: wan
+    default_action: drop
+    description: "DMZ Web limited internet for updates"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        protocol: tcp
+        destination:
+          port: "80,443"
+        description: "Allow HTTP/HTTPS for updates"
+
+      - number: 30
+        action: accept
+        protocol: udp
+        destination:
+          port: "53"
+        description: "Allow DNS queries"
+
+  # VPN -> WAN: Limited (updates only, treated as DMZ)
+  - name: vpn-to-wan
+    from_zone: vpn
+    to_zone: wan
+    default_action: drop
+    description: "VPN limited internet for updates"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        protocol: tcp
+        destination:
+          port: "80,443"
+        description: "Allow HTTP/HTTPS for updates"
+
+      - number: 30
+        action: accept
+        protocol: udp
+        destination:
+          port: "53"
+        description: "Allow DNS queries"
+
+  # WAN -> DMZ-Cloud: Allow inbound to Nextcloud (port forwarded)
+  - name: wan-to-dmz-cloud
+    from_zone: wan
+    to_zone: dmz-cloud
+    default_action: drop
+    description: "Allow inbound to Nextcloud services"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: drop
+        state:
+          invalid: enable
+        description: "Drop invalid packets"
+
+      - number: 30
+        action: accept
+        protocol: tcp
+        destination:
+          port: "80,443"
+          address: "10.0.11.10"
+        description: "Allow HTTP/HTTPS to Nextcloud"
+
+# ============================================================================
+# EAST-WEST RULES (Internal Zone <-> Internal Zone)
+# ============================================================================
+east_west_firewall_rules:
+  # MGMT -> DMZ-Cloud: Allow SSH/RDP for management
+  - name: mgmt-to-dmz-cloud
+    from_zone: mgmt
+    to_zone: dmz-cloud
+    default_action: drop
+    description: "MGMT can manage DMZ Cloud via SSH/RDP"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        protocol: tcp
+        destination:
+          port: "22,3389"
+        description: "Allow SSH and RDP"
+
+      - number: 30
+        action: accept
+        protocol: icmp
+        description: "Allow ping"
+
+  # MGMT -> DMZ-Web: Allow SSH/RDP for management
+  - name: mgmt-to-dmz-web
+    from_zone: mgmt
+    to_zone: dmz-web
+    default_action: drop
+    description: "MGMT can manage DMZ Web via SSH/RDP"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        protocol: tcp
+        destination:
+          port: "22,3389"
+        description: "Allow SSH and RDP"
+
+      - number: 30
+        action: accept
+        protocol: icmp
+        description: "Allow ping"
+
+  # MGMT -> VPN: Allow SSH/RDP for management
+  - name: mgmt-to-vpn
+    from_zone: mgmt
+    to_zone: vpn
+    default_action: drop
+    description: "MGMT can manage VPN network via SSH/RDP"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        protocol: tcp
+        destination:
+          port: "22,3389"
+        description: "Allow SSH and RDP"
+
+      - number: 30
+        action: accept
+        protocol: icmp
+        description: "Allow ping"
+
+  # DMZ-Cloud -> MGMT: DENY (DMZ cannot access management)
+  - name: dmz-cloud-to-mgmt
+    from_zone: dmz-cloud
+    to_zone: mgmt
+    default_action: drop
+    description: "Block DMZ Cloud from accessing MGMT"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related only"
+
+      - number: 20
+        action: drop
+        description: "Drop all other traffic"
+
+  # DMZ-Web -> MGMT: DENY
+  - name: dmz-web-to-mgmt
+    from_zone: dmz-web
+    to_zone: mgmt
+    default_action: drop
+    description: "Block DMZ Web from accessing MGMT"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related only"
+
+      - number: 20
+        action: drop
+        description: "Drop all other traffic"
+
+  # VPN -> MGMT: DENY
+  - name: vpn-to-mgmt
+    from_zone: vpn
+    to_zone: mgmt
+    default_action: drop
+    description: "Block VPN from accessing MGMT"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related only"
+
+      - number: 20
+        action: drop
+        description: "Drop all other traffic"
+
+  # DMZ-Cloud <-> DMZ-Web: DENY both directions
+  - name: dmz-cloud-to-dmz-web
+    from_zone: dmz-cloud
+    to_zone: dmz-web
+    default_action: drop
+    description: "Isolate DMZ Cloud from DMZ Web"
+    rules:
+      - number: 10
+        action: drop
+        description: "Drop all traffic"
+
+  - name: dmz-web-to-dmz-cloud
+    from_zone: dmz-web
+    to_zone: dmz-cloud
+    default_action: drop
+    description: "Isolate DMZ Web from DMZ Cloud"
+    rules:
+      - number: 10
+        action: drop
+        description: "Drop all traffic"
+
+  # DMZ-Cloud -> VPN: DENY
+  - name: dmz-cloud-to-vpn
+    from_zone: dmz-cloud
+    to_zone: vpn
+    default_action: drop
+    description: "Block DMZ Cloud from VPN"
+    rules:
+      - number: 10
+        action: drop
+        description: "Drop all traffic"
+
+  # DMZ-Web -> VPN: DENY
+  - name: dmz-web-to-vpn
+    from_zone: dmz-web
+    to_zone: vpn
+    default_action: drop
+    description: "Block DMZ Web from VPN"
+    rules:
+      - number: 10
+        action: drop
+        description: "Drop all traffic"
+
+  # VPN -> DMZ-Cloud: DENY
+  - name: vpn-to-dmz-cloud
+    from_zone: vpn
+    to_zone: dmz-cloud
+    default_action: drop
+    description: "Block VPN from DMZ Cloud"
+    rules:
+      - number: 10
+        action: drop
+        description: "Drop all traffic"
+
+  # VPN -> DMZ-Web: DENY
+  - name: vpn-to-dmz-web
+    from_zone: vpn
+    to_zone: dmz-web
+    default_action: drop
+    description: "Block VPN from DMZ Web"
+    rules:
+      - number: 10
+        action: drop
+        description: "Drop all traffic"
+
+# ============================================================================
+# LOCAL ZONE RULES (Traffic to/from the router itself)
+# ============================================================================
+local_zone_firewall_rules:
+  # WAN -> LOCAL: Allow SSH from private IPs only
+  - name: wan-to-local
+    from_zone: wan
+    to_zone: local
+    default_action: drop
+    description: "Allow SSH from private IPs to router"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: drop
+        state:
+          invalid: enable
+        log: true
+        description: "Drop invalid packets"
+
+      - number: 30
+        action: accept
+        protocol: tcp
+        source:
+          address: "10.0.0.0/8"
+        destination:
+          port: "22"
+        description: "Allow SSH from 10.0.0.0/8"
+
+      - number: 31
+        action: accept
+        protocol: tcp
+        source:
+          address: "172.16.0.0/12"
+        destination:
+          port: "22"
+        description: "Allow SSH from 172.16.0.0/12"
+
+      - number: 32
+        action: accept
+        protocol: tcp
+        source:
+          address: "192.168.0.0/16"
+        destination:
+          port: "22"
+        description: "Allow SSH from 192.168.0.0/16"
+
+  # MGMT -> LOCAL: Full management access
+  - name: mgmt-to-local
+    from_zone: mgmt
+    to_zone: local
+    default_action: drop
+    description: "Management network can access router services"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        protocol: tcp
+        destination:
+          port: "22"
+        description: "Allow SSH"
+
+      - number: 30
+        action: accept
+        protocol: udp
+        destination:
+          port: "53"
+        description: "Allow DNS queries"
+
+      - number: 40
+        action: accept
+        protocol: icmp
+        description: "Allow ping"
+
+  # DMZ-Cloud -> LOCAL: DNS only
+  - name: dmz-cloud-to-local
+    from_zone: dmz-cloud
+    to_zone: local
+    default_action: drop
+    description: "DMZ Cloud can query DNS on router"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        protocol: udp
+        destination:
+          port: "53"
+        description: "Allow DNS queries"
+
+  # DMZ-Web -> LOCAL: DNS only
+  - name: dmz-web-to-local
+    from_zone: dmz-web
+    to_zone: local
+    default_action: drop
+    description: "DMZ Web can query DNS on router"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        protocol: udp
+        destination:
+          port: "53"
+        description: "Allow DNS queries"
+
+  # VPN -> LOCAL: DNS only
+  - name: vpn-to-local
+    from_zone: vpn
+    to_zone: local
+    default_action: drop
+    description: "VPN can query DNS on router"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        protocol: udp
+        destination:
+          port: "53"
+        description: "Allow DNS queries"
+
+  # LOCAL -> WAN: Allow router to reach internet
+  - name: local-to-wan
+    from_zone: local
+    to_zone: wan
+    default_action: drop
+    description: "Router can access internet for updates/NTP"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        description: "Allow all outbound from router"
+
+  # LOCAL -> MGMT: Allow responses
+  - name: local-to-mgmt
+    from_zone: local
+    to_zone: mgmt
+    default_action: drop
+    description: "Router can respond to MGMT network"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        description: "Allow all from router to MGMT"
+
+  # LOCAL -> DMZ-Cloud: Allow responses
+  - name: local-to-dmz-cloud
+    from_zone: local
+    to_zone: dmz-cloud
+    default_action: drop
+    description: "Router can respond to DMZ Cloud"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        description: "Allow all from router to DMZ Cloud"
+
+  # LOCAL -> DMZ-Web: Allow responses
+  - name: local-to-dmz-web
+    from_zone: local
+    to_zone: dmz-web
+    default_action: drop
+    description: "Router can respond to DMZ Web"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        description: "Allow all from router to DMZ Web"
+
+  # LOCAL -> VPN: Allow responses
+  - name: local-to-vpn
+    from_zone: local
+    to_zone: vpn
+    default_action: drop
+    description: "Router can respond to VPN network"
+    rules:
+      - number: 10
+        action: accept
+        state:
+          established: enable
+          related: enable
+        description: "Allow established/related"
+
+      - number: 20
+        action: accept
+        description: "Allow all from router to VPN"
+
+# ============================================================================
+# NAT CONFIGURATION
+# ============================================================================
+
+# Source NAT - All internal networks to WAN
+nat_source_rules:
+  - rule_number: 100
+    description: "NAT for all internal networks to WAN"
+    outbound_interface: "{{ wan_interface }}"
+    source:
+      address: "10.0.0.0/8"
+    translation:
+      address: masquerade
+
+# Destination NAT - Port forwarding from WAN to services
+nat_destination_rules:
+  - rule_number: 100
+    description: "Forward HTTP to Nextcloud"
+    inbound_interface: "{{ wan_interface }}"
+    protocol: tcp
+    destination:
+      port: "80"
+    translation:
+      address: "10.0.11.10"
+      port: "80"
+
+  - rule_number: 110
+    description: "Forward HTTPS to Nextcloud"
+    inbound_interface: "{{ wan_interface }}"
+    protocol: tcp
+    destination:
+      port: "443"
+    translation:
+      address: "10.0.11.10"
+      port: "443"
+
+# ============================================================================
+# DHCP DISABLED - Using Static IPs only
+# ============================================================================
+# DHCP is disabled per requirements - all VMs use static IPs
+# DNS forwarding is enabled on each VLAN gateway
+
+# ============================================================================
+# FIREWALL GLOBAL OPTIONS
+# ============================================================================
+firewall_global:
+  all_ping: enable
+  broadcast_ping: disable
+  ip_src_route: disable
+  log_martians: enable
+  receive_redirects: disable
+  send_redirects: enable
+  source_validation: disable
+  syn_cookies: enable
+  twa_hazards_protection: disable
+
+# ============================================================================
+# SSH CONFIGURATION
+# ============================================================================
+# SSH access to VyOS router:
+# - From MGMT network: Allowed
+# - Password auth: Disabled (key-based only)
+ssh_config:
+  port: 22
+  disable_password_authentication: true
+  # Management network can SSH to router - configured via VyOS firewall local rules

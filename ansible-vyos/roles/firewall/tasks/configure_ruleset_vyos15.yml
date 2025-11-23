@@ -1,6 +1,8 @@
 ---
-# Configure individual firewall ruleset
+# Configure individual firewall ruleset for VyOS 1.5+
 # This task is called for each ruleset (North-South and East-West)
+# Note: VyOS 1.5 removed zone-policy, so we just create named rulesets
+#       and apply them to interfaces in the main firewall task
 
 - name: Create firewall name for {{ ruleset.name }}
   vyos.vyos.vyos_config:
@@ -63,8 +65,5 @@
     - item.destination is defined
     - item.destination.address is defined
 
-- name: Apply ruleset to zone for {{ ruleset.name }}
-  vyos.vyos.vyos_config:
-    lines:
-      - set zone-policy zone {{ ruleset.to_zone }} from {{ ruleset.from_zone }} firewall name {{ ruleset.name }}
-    save: false
+# Note: In VyOS 1.5, rulesets are applied to interfaces, not zones
+# The interface application is done in the main firewall/tasks/main.yml file

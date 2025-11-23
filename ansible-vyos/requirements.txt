@@ -1,13 +1,1 @@
-# Python dependencies for VyOS Ansible automation
-#
-# Ansible version requirements:
-# - Minimum: 2.15.0
-# - Maximum: < 2.19.0 (2.19.0 has breaking API changes)
-# - Recommended: 2.17.x or 2.18.x for stable operation
-
-ansible>=2.15.0,<2.19.0
-ansible-core>=2.15.0,<2.19.0
-
-# Network automation dependencies
-paramiko>=2.11.0
-netmiko>=4.1.0
+ansible-pylibssh

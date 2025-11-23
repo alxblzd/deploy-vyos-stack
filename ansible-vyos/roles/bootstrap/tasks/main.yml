@@ -1,30 +1,57 @@
 ---
-# Bootstrap - Verify VyOS connectivity
+# Bootstrap - Verify VyOS connectivity and configure basic settings
 
 - name: Test connectivity
   vyos.vyos.vyos_command:
     commands:
       - show version
-  register: version_check
-  retries: 3
-  delay: 5
-  until: version_check is succeeded
-
-- name: Display VyOS version
-  ansible.builtin.debug:
-    msg: "Connected to VyOS successfully. Version info received."
-  when: version_check is succeeded
+      - show hardware cpu
 
 - name: Verify configuration mode access
   vyos.vyos.vyos_config:
     lines:
       - set system option performance throughput
   register: config_check
-  failed_when: false  # Don't fail if this specific option fails
+  failed_when: false  # Do not fail even if this exact command errors out
 
 - name: Ensure configuration mode is accessible
   ansible.builtin.assert:
     that:
-      - config_check is not failed or 'already exists' in config_check.msg | default('')
+      - config_check is not failed
+        or "'already exists' in (config_check.msg | default(''))"
     fail_msg: "Cannot access VyOS configuration mode"
     success_msg: "VyOS configuration mode accessible"
+
+- name: Configure SSH port
+  vyos.vyos.vyos_config:
+    lines:
+      - set service ssh port {{ ssh_config.port }}
+    save: false
+  when: ssh_config is defined
+
+- name: Disable SSH password authentication
+  vyos.vyos.vyos_config:
+    lines:
+      - set service ssh disable-password-authentication
+    save: false
+  when:
+    - ssh_config is defined
+    - ssh_config.disable_password_authentication | bool
+
+- name: Allow SSH from MGMT network to router (local firewall)
+  vyos.vyos.vyos_config:
+    lines:
+      - set firewall ipv4 input filter rule 10 action accept
+      - set firewall ipv4 input filter rule 10 description 'Allow SSH from MGMT network'
+      - set firewall ipv4 input filter rule 10 protocol tcp
+      - set firewall ipv4 input filter rule 10 destination port 22
+      - set firewall ipv4 input filter rule 10 source address 10.0.10.0/24
+      - set firewall ipv4 input filter rule 20 action accept
+      - set firewall ipv4 input filter rule 20 description 'Allow established/related'
+      - set firewall ipv4 input filter rule 20 state established
+      - set firewall ipv4 input filter rule 20 state related
+    save: false
+
+- name: Save bootstrap configuration
+  vyos.vyos.vyos_config:
+    save: true

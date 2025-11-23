@@ -1,0 +1,387 @@
+---
+# VyOS Router 01 Configuration
+# Host-specific variables for vyos-router-01
+
+# System Configuration
+router_id: 192.168.15.81
+hostname: vyos-router-01
+timezone: UTC
+ntp_servers:
+  - 0.pool.ntp.org
+  - 1.pool.ntp.org
+
+# SSH Configuration
+ssh:
+  port: 22
+  disable_password_auth: true
+
+# Interfaces Configuration
+interfaces:
+  - name: eth0
+    description: "WAN Interface"
+    enabled: true
+    # IP already configured via cloud-init
+
+  - name: eth1
+    description: "LAN Trunk"
+    enabled: true
+
+  - name: eth1
+    vif: 10
+    description: "Management Network"
+    enabled: true
+    ipv4_addr: "10.0.10.1/24"
+    zone: mgmt
+
+  - name: eth1
+    vif: 11
+    description: "DMZ Cloud - Nextcloud"
+    enabled: true
+    ipv4_addr: "10.0.11.1/24"
+    zone: dmz-cloud
+
+  - name: eth1
+    vif: 12
+    description: "DMZ Web - Web Services"
+    enabled: true
+    ipv4_addr: "10.0.12.1/24"
+    zone: dmz-web
+
+  - name: eth1
+    vif: 20
+    description: "VPN Network"
+    enabled: true
+    ipv4_addr: "10.0.20.1/24"
+    zone: vpn
+
+# Firewall Zones
+zones:
+  - name: wan
+    description: "WAN/Internet Zone"
+    default_action: drop
+    interface: eth0
+
+  - name: mgmt
+    description: "Management Network"
+    default_action: drop
+
+  - name: dmz-cloud
+    description: "DMZ Cloud - Nextcloud services"
+    default_action: drop
+
+  - name: dmz-web
+    description: "DMZ Web - Web services"
+    default_action: drop
+
+  - name: vpn
+    description: "VPN Network"
+    default_action: drop
+
+# Firewall Policies
+fw_policies:
+  ipv4:
+    # MGMT -> WAN
+    - name: mgmt-to-wan
+      zones:
+        from: mgmt
+        to: wan
+      default_action: accept
+      rules:
+        - action: accept
+          state:
+            established: true
+            related: true
+          description: "Allow established/related"
+        - action: accept
+          description: "Allow all outbound from MGMT"
+
+    # MGMT -> DMZ-Cloud
+    - name: mgmt-to-dmz-cloud
+      zones:
+        from: mgmt
+        to: dmz-cloud
+      default_action: drop
+      rules:
+        - action: accept
+          state:
+            established: true
+            related: true
+          description: "Allow established/related"
+        - action: accept
+          protocol: tcp
+          port: "22,3389"
+          description: "Allow SSH and RDP"
+        - action: accept
+          protocol: icmp
+          description: "Allow ping"
+
+    # MGMT -> DMZ-Web
+    - name: mgmt-to-dmz-web
+      zones:
+        from: mgmt
+        to: dmz-web
+      default_action: drop
+      rules:
+        - action: accept
+          state:
+            established: true
+            related: true
+          description: "Allow established/related"
+        - action: accept
+          protocol: tcp
+          port: "22,3389"
+          description: "Allow SSH and RDP"
+        - action: accept
+          protocol: icmp
+          description: "Allow ping"
+
+    # MGMT -> VPN
+    - name: mgmt-to-vpn
+      zones:
+        from: mgmt
+        to: vpn
+      default_action: drop
+      rules:
+        - action: accept
+          state:
+            established: true
+            related: true
+          description: "Allow established/related"
+        - action: accept
+          protocol: tcp
+          port: "22,3389"
+          description: "Allow SSH and RDP"
+        - action: accept
+          protocol: icmp
+          description: "Allow ping"
+
+    # DMZ-Cloud -> WAN
+    - name: dmz-cloud-to-wan
+      zones:
+        from: dmz-cloud
+        to: wan
+      default_action: drop
+      rules:
+        - action: accept
+          state:
+            established: true
+            related: true
+          description: "Allow established/related"
+        - action: accept
+          protocol: tcp
+          port: "80,443"
+          description: "Allow HTTP/HTTPS for updates"
+        - action: accept
+          protocol: udp
+          port: "53"
+          description: "Allow DNS"
+
+    # DMZ-Web -> WAN
+    - name: dmz-web-to-wan
+      zones:
+        from: dmz-web
+        to: wan
+      default_action: drop
+      rules:
+        - action: accept
+          state:
+            established: true
+            related: true
+          description: "Allow established/related"
+        - action: accept
+          protocol: tcp
+          port: "80,443"
+          description: "Allow HTTP/HTTPS for updates"
+        - action: accept
+          protocol: udp
+          port: "53"
+          description: "Allow DNS"
+
+    # VPN -> WAN
+    - name: vpn-to-wan
+      zones:
+        from: vpn
+        to: wan
+      default_action: drop
+      rules:
+        - action: accept
+          state:
+            established: true
+            related: true
+          description: "Allow established/related"
+        - action: accept
+          protocol: tcp
+          port: "80,443"
+          description: "Allow HTTP/HTTPS for updates"
+        - action: accept
+          protocol: udp
+          port: "53"
+          description: "Allow DNS"
+
+    # WAN -> DMZ-Cloud
+    - name: wan-to-dmz-cloud
+      zones:
+        from: wan
+        to: dmz-cloud
+      default_action: drop
+      rules:
+        - action: accept
+          state:
+            established: true
+            related: true
+          description: "Allow established/related"
+        - action: drop
+          state:
+            invalid: true
+          description: "Drop invalid packets"
+        - action: accept
+          protocol: tcp
+          port: "80,443"
+          dest_addr: "10.0.11.10"
+          description: "Allow HTTP/HTTPS to Nextcloud"
+
+    # DMZ -> MGMT: DENY
+    - name: dmz-cloud-to-mgmt
+      zones:
+        from: dmz-cloud
+        to: mgmt
+      default_action: drop
+      rules:
+        - action: accept
+          state:
+            established: true
+            related: true
+          description: "Allow established/related only"
+        - action: drop
+          description: "Drop all other traffic"
+
+    - name: dmz-web-to-mgmt
+      zones:
+        from: dmz-web
+        to: mgmt
+      default_action: drop
+      rules:
+        - action: accept
+          state:
+            established: true
+            related: true
+          description: "Allow established/related only"
+        - action: drop
+          description: "Drop all other traffic"
+
+    # VPN -> MGMT: DENY
+    - name: vpn-to-mgmt
+      zones:
+        from: vpn
+        to: mgmt
+      default_action: drop
+      rules:
+        - action: accept
+          state:
+            established: true
+            related: true
+          description: "Allow established/related only"
+        - action: drop
+          description: "Drop all other traffic"
+
+    # DMZ-Cloud <-> DMZ-Web: DENY
+    - name: dmz-cloud-to-dmz-web
+      zones:
+        from: dmz-cloud
+        to: dmz-web
+      default_action: drop
+      rules:
+        - action: drop
+          description: "Drop all traffic"
+
+    - name: dmz-web-to-dmz-cloud
+      zones:
+        from: dmz-web
+        to: dmz-cloud
+      default_action: drop
+      rules:
+        - action: drop
+          description: "Drop all traffic"
+
+    # DMZ <-> VPN: DENY
+    - name: dmz-cloud-to-vpn
+      zones:
+        from: dmz-cloud
+        to: vpn
+      default_action: drop
+      rules:
+        - action: drop
+          description: "Drop all traffic"
+
+    - name: dmz-web-to-vpn
+      zones:
+        from: dmz-web
+        to: vpn
+      default_action: drop
+      rules:
+        - action: drop
+          description: "Drop all traffic"
+
+    - name: vpn-to-dmz-cloud
+      zones:
+        from: vpn
+        to: dmz-cloud
+      default_action: drop
+      rules:
+        - action: drop
+          description: "Drop all traffic"
+
+    - name: vpn-to-dmz-web
+      zones:
+        from: vpn
+        to: dmz-web
+      default_action: drop
+      rules:
+        - action: drop
+          description: "Drop all traffic"
+
+# NAT Configuration
+nat:
+  source:
+    - rule: 100
+      description: "NAT for all internal networks to WAN"
+      outbound_interface: eth0
+      source_address: "10.0.0.0/8"
+      translation: masquerade
+
+  destination:
+    - rule: 100
+      description: "Forward HTTP to Nextcloud"
+      inbound_interface: eth0
+      protocol: tcp
+      dest_port: "80"
+      translation_address: "10.0.11.10"
+      translation_port: "80"
+
+    - rule: 110
+      description: "Forward HTTPS to Nextcloud"
+      inbound_interface: eth0
+      protocol: tcp
+      dest_port: "443"
+      translation_address: "10.0.11.10"
+      translation_port: "443"
+
+# DNS Configuration
+dns:
+  cache_size: 10000
+  upstream_servers:
+    - 1.1.1.1
+    - 8.8.8.8
+  # Listen addresses auto-configured from interface IPs
+
+# Firewall Global Options
+firewall_global:
+  all_ping: enable
+  broadcast_ping: disable
+  ip_src_route: disable
+  log_martians: enable
+  receive_redirects: disable
+  send_redirects: enable
+  source_validation: disable
+  syn_cookies: enable
+  twa_hazards_protection: disable

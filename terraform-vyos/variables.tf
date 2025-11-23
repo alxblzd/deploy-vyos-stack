@@ -23,7 +23,7 @@ variable "vyos_vms" {
     zone_interfaces = list(object({
       name    = string
       bridge  = string
-      vlan_id = number
+      vlan_id = optional(number)
     }))
   }))
   description = "VyOS router configurations"
@@ -31,7 +31,7 @@ variable "vyos_vms" {
   validation {
     condition = alltrue([
       for vm in var.vyos_vms :
-      length(vm.zone_interfaces) == length(distinct([for zone in vm.zone_interfaces : zone.vlan_id]))
+      length([for zone in vm.zone_interfaces : zone.vlan_id if zone.vlan_id != null]) == length(distinct([for zone in vm.zone_interfaces : zone.vlan_id if zone.vlan_id != null]))
     ])
     error_message = "VLAN IDs must be unique within each router. Duplicate VLAN IDs detected in zone_interfaces."
   }
@@ -39,7 +39,7 @@ variable "vyos_vms" {
   validation {
     condition = alltrue([
       for vm in var.vyos_vms :
-      alltrue([for zone in vm.zone_interfaces : zone.vlan_id >= 1 && zone.vlan_id <= 4094])
+      alltrue([for zone in vm.zone_interfaces : zone.vlan_id == null || (zone.vlan_id >= 1 && zone.vlan_id <= 4094)])
     ])
     error_message = "VLAN IDs must be between 1 and 4094 (valid VLAN range)."
   }

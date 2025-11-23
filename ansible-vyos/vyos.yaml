@@ -1,0 +1,32 @@
+---
+# VyOS Configuration Playbook
+# Applies configuration to all VyOS routers in inventory
+
+- hosts: vyos_routers
+  gather_facts: false
+  
+  tasks:
+    - import_role:
+        name: system
+      tags: ['system']
+    
+    - import_role:
+        name: interfaces
+      tags: ['interfaces']
+    
+    - import_role:
+        name: firewall
+      tags: ['firewall']
+    
+    - import_role:
+        name: nat
+      tags: ['nat']
+    
+    - import_role:
+        name: dns
+      tags: ['dns']
+    
+    - name: Save configuration
+      vyos.vyos.vyos_config:
+        save: true
+      tags: ['always']

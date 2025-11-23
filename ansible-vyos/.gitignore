@@ -3,11 +3,27 @@ ansible.log
 *.log
 *.retry
 
-# Backup files
+# Backup and old files
 backups/
+*.old
+*.backup
+*.bak
+*~
+*.swp
+*.swo
+*.zones-broken
+*.zone-policy-old
 
-# Temporary test files
-test-*.yml
+# Vault files with real passwords (keep .example files)
+group_vars/vault.yml
+host_vars/*/vault.yml
+
+# Temporary files
+*_new
+*_new.*
+*_temp
+*_temp.*
+inventory_new
 
 # Python cache
 __pycache__/
@@ -19,8 +35,10 @@ __pycache__/
 .idea/
 *.swp
 *.swo
-*~
 
 # OS files
 .DS_Store
 Thumbs.db
+
+# Documentation drafts
+README_NEW_STRUCTURE.md

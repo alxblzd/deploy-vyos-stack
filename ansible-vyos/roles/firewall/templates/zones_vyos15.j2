@@ -1,0 +1,80 @@
+{# VyOS 1.5+ Zone Configuration Template #}
+{# This template creates zones and associates rulesets #}
+
+{# ============================================================================ #}
+{# STEP 1: Create Zones and Assign Interfaces #}
+{# ============================================================================ #}
+
+{# WAN Zone (Internet) #}
+set firewall zone WAN default-action drop
+set firewall zone WAN description 'WAN/Internet Zone'
+set firewall zone WAN member interface {{ wan_interface }}
+
+{# MGMT Zone (Management VLAN) #}
+set firewall zone MGMT default-action drop
+set firewall zone MGMT description 'Management Network - Full access'
+{% for zone in network_zones %}
+{% if zone.name == 'mgmt' %}
+set firewall zone MGMT member interface {{ zone.interface }}.{{ zone.vlan_id }}
+{% endif %}
+{% endfor %}
+
+{# DMZCLOUD Zone (DMZ Cloud - Nextcloud) #}
+set firewall zone DMZCLOUD default-action drop
+set firewall zone DMZCLOUD description 'DMZ Cloud - Nextcloud services'
+{% for zone in network_zones %}
+{% if zone.name == 'dmz-cloud' %}
+set firewall zone DMZCLOUD member interface {{ zone.interface }}.{{ zone.vlan_id }}
+{% endif %}
+{% endfor %}
+
+{# DMZWEB Zone (DMZ Web - Web Services) #}
+set firewall zone DMZWEB default-action drop
+set firewall zone DMZWEB description 'DMZ Web - Web services (Jellyfin, Uptime Kuma, etc)'
+{% for zone in network_zones %}
+{% if zone.name == 'dmz-web' %}
+set firewall zone DMZWEB member interface {{ zone.interface }}.{{ zone.vlan_id }}
+{% endif %}
+{% endfor %}
+
+{# VPN Zone #}
+set firewall zone VPN default-action drop
+set firewall zone VPN description 'VPN Network - Treated as DMZ'
+{% for zone in network_zones %}
+{% if zone.name == 'vpn' %}
+set firewall zone VPN member interface {{ zone.interface }}.{{ zone.vlan_id }}
+{% endif %}
+{% endfor %}
+
+{# LOCAL Zone (Router itself) #}
+set firewall zone LOCAL default-action drop
+set firewall zone LOCAL description 'Router itself (for management, DNS, etc)'
+set firewall zone LOCAL local-zone
+
+{# ============================================================================ #}
+{# STEP 2: Associate Rulesets to Zones #}
+{# ============================================================================ #}
+
+{# North-South Rules (Internal <-> WAN) #}
+{% for ruleset in north_south_firewall_rules %}
+{% set from_zone = ruleset.from_zone | upper | replace('-', '') %}
+{% set to_zone = ruleset.to_zone | upper | replace('-', '') %}
+{% set ruleset_name = ruleset.name | upper | replace('-', '_') %}
+set firewall zone {{ to_zone }} from {{ from_zone }} firewall name {{ ruleset_name }}
+{% endfor %}
+
+{# East-West Rules (Internal <-> Internal) #}
+{% for ruleset in east_west_firewall_rules %}
+{% set from_zone = ruleset.from_zone | upper | replace('-', '') %}
+{% set to_zone = ruleset.to_zone | upper | replace('-', '') %}
+{% set ruleset_name = ruleset.name | upper | replace('-', '_') %}
+set firewall zone {{ to_zone }} from {{ from_zone }} firewall name {{ ruleset_name }}
+{% endfor %}
+
+{# LOCAL Zone Rules (Traffic to/from router) #}
+{% for ruleset in local_zone_firewall_rules %}
+{% set from_zone = ruleset.from_zone | upper | replace('-', '') %}
+{% set to_zone = ruleset.to_zone | upper | replace('-', '') %}
+{% set ruleset_name = ruleset.name | upper | replace('-', '_') %}
+set firewall zone {{ to_zone }} from {{ from_zone }} firewall name {{ ruleset_name }}
+{% endfor %}

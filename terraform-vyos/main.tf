@@ -99,7 +99,7 @@ resource "proxmox_virtual_environment_vm" "vyos" {
     content {
       bridge  = network_device.value.bridge
       model   = "virtio"
-      vlan_id = network_device.value.vlan_id
+      vlan_id = try(network_device.value.vlan_id, null)
     }
   }
 

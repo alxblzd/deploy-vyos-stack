@@ -1,0 +1,13 @@
+{# Create zones using zone-policy (old syntax that still works) #}
+{% for zone_item in firewall_zones %}
+set zone-policy zone {{ zone_item.name }} description '{{ zone_item.description }}'
+set zone-policy zone {{ zone_item.name }} default-action {{ zone_item.default_action }}
+{% endfor %}
+
+{# Assign WAN interface to zone #}
+set zone-policy zone wan interface {{ wan_interface }}
+
+{# Assign VLAN interfaces to zones #}
+{% for item in network_zones %}
+set zone-policy zone {{ item.name }} interface {{ item.interface }}.{{ item.vlan_id }}
+{% endfor %}
